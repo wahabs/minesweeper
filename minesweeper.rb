@@ -2,25 +2,55 @@ require 'byebug'
 
 class Tile
 
-  attr_accessor :position, :state, :board
+  attr_accessor :position, :board, :bombed, :flagged, :revealed
 
-  def initialize(position, state, board)
+  def initialize(position, board, bombed = false, flag = "*", revealed = false)
     @position = position
-    @state = state #
+    @bombed = bombed
+    @flag = flag
+    @revealed = revealed
     @board = board
   end
 
   def reveal
+    revealed = true
+    if bombed
+      flag = "B"
+      return true
+    end
+    flag = neighbor_bomb_count
+    if neighbor_bomb_count == 0
+      neighbors.each { |neighbor| neighbor.reveal }
+    end
+    return false
+
   end
 
   def neighbors
+    x = position[0]
+    y = position[1]
+    ret = []
+    (-1..1).each do |delx|
+      (-1..1).each do |dely|
+        if (0..8).cover?(x+delx) && (0..8).cover?(y+dely)
+        ret << board[[x+delx, y+dely]] unless delx == 0 && dely == 0
+        end
+      end
+    end
+    ret
   end
 
   def neighbor_bomb_count
+    count = 0
+    neighbors.each do |neighbor|
+      count += 1 if neighbor.bombed
+    end
+    count
   end
 
   def inspect
-    #{}"Position: #{position}, State: #{state}"
+    flag
+    #{}"#{position}#{flag}"
   end
 
 end
@@ -29,14 +59,7 @@ class Board
 
   attr_accessor :grid
 
-  # def self.new_board
-  #   b = Board.new
-  #   b.make_grid(9)
-  #   b
-  # end
-
   def initialize
-    #@grid = Array.new(9) { Array.new(9) }
     make_grid(9)
   end
 
@@ -50,9 +73,7 @@ class Board
 
   def display_board
     grid.each do |row|
-      row.each do |tile|
-        p tile
-      end
+      p row
     end
   end
 
@@ -61,16 +82,14 @@ class Board
     self.grid = Array.new(grid_size) { Array.new(grid_size) }
     (0...grid_size).each do |r|
       (0...grid_size).each do |c|
-        self[[r, c]] = Tile.new([r, c], :none, self)
+        self[[r, c]] = Tile.new([r, c], self)
       end
     end
-    seed_bombs(5)
+    seed_bombs(10)
   end
 
   def seed_bombs(num)
-    num.times do
-      self[[rand(8), rand(8)]].state = :bomb
-    end
+    num.times { self[[rand(8), rand(8)]].bombed = true }
   end
 
 
@@ -89,7 +108,7 @@ end
 
 
 
-b = Board.new
-
+# b = Board.new
+# b.display_board
 #b[[3,4]] = Tile.new([3,4], :none, b)
-b.display_board
+#b.display_board
