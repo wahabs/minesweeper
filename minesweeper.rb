@@ -2,9 +2,9 @@ require 'byebug'
 
 class Tile
 
-  attr_accessor :position, :board, :bombed, :flagged, :revealed
+  attr_accessor :position, :board, :bombed, :flag, :revealed
 
-  def initialize(position, board, bombed = false, flag = "*", revealed = false)
+  def initialize(position, board, bombed = false, flag = "-", revealed = false)
     @position = position
     @bombed = bombed
     @flag = flag
@@ -12,18 +12,28 @@ class Tile
     @board = board
   end
 
-  def reveal
-    revealed = true
+  def player_flag
+    self.flag = "F"
+  end
+
+  def found_bomb?
+    self.revealed = true
     if bombed
-      flag = "B"
+      board.reveal_bombs
+      #self.flag = "B"
       return true
     end
-    flag = neighbor_bomb_count
-    if neighbor_bomb_count == 0
-      neighbors.each { |neighbor| neighbor.reveal }
+    self.flag = neighbor_bomb_count
+    if self.flag == 0
+      self.flag = "."
+      neighbors.each do |neighbor|
+        unless neighbor.flag == "F" || neighbor.revealed
+          neighbor.found_bomb?
+        end
+      end
     end
-    return false
 
+    false
   end
 
   def neighbors
@@ -32,8 +42,8 @@ class Tile
     ret = []
     (-1..1).each do |delx|
       (-1..1).each do |dely|
-        if (0..8).cover?(x+delx) && (0..8).cover?(y+dely)
-        ret << board[[x+delx, y+dely]] unless delx == 0 && dely == 0
+        if (0..8).cover?(x + delx) && (0..8).cover?(y + dely)
+          ret << board[[x + delx, y + dely]] unless delx == 0 && dely == 0
         end
       end
     end
@@ -48,9 +58,8 @@ class Tile
     count
   end
 
-  def inspect
-    flag
-    #{}"#{position}#{flag}"
+  def to_s
+    " #{flag}"
   end
 
 end
@@ -72,8 +81,13 @@ class Board
   end
 
   def display_board
-    grid.each do |row|
-      p row
+    puts "  #{(0..8).to_a.join(" ")}"
+    grid.each_with_index do |row, r|
+      print r
+      row.each_with_index do |col, c|
+        print self[[r, c]]
+      end
+      puts ""
     end
   end
 
@@ -85,7 +99,7 @@ class Board
         self[[r, c]] = Tile.new([r, c], self)
       end
     end
-    seed_bombs(10)
+    seed_bombs(5)
   end
 
   def seed_bombs(num)
@@ -95,20 +109,55 @@ class Board
 
   def play
 
-    puts "Enter coordinates (add -f to flag)"
-    action = gets.chomp.split(" ")
-      if action.include?("f")
-        #flag
-      else
-        #reveal
+    until won?
+
+      display_board
+      action = get_input
+      coordinates = [action[0].to_i, action[1].to_i]
+
+      if action.include?("-f")
+        self[coordinates].player_flag
+      elsif self[coordinates].found_bomb?
+          display_board
+          puts "You lose."
+          break
       end
 
+    end
+
+    puts "You win!" if won?
+
   end
+
+  def get_input
+    print "Enter coordinates (add -f to flag): " #"1 2 -f"
+    gets.chomp.split(" ")
+  end
+
+  def reveal_bombs
+    grid.each_with_index do |row, r|
+      row.each_with_index do |col, c|
+        self[[r, c]].flag = "B" if self[[r, c]].bombed
+      end
+    end
+  end
+
+
+  def won?
+    grid.each_with_index do |row, r|
+      row.each_with_index do |col, c|
+        return false unless self[[r, c]].revealed || self[[r, c]].bombed
+      end
+    end
+    true
+  end
+
 end
 
 
 
-# b = Board.new
-# b.display_board
+b = Board.new
+b.play
+#b.display_board
 #b[[3,4]] = Tile.new([3,4], :none, b)
 #b.display_board
