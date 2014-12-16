@@ -1,4 +1,5 @@
 require 'byebug'
+require 'yaml'
 
 class Tile
 
@@ -68,6 +69,24 @@ class Board
 
   attr_accessor :grid
 
+  def self.load
+    print "Load saved game (-l) or play a new game (-n): "
+    input = gets.chomp
+    until input == "-l" || input == "-n"
+      print "Please input either -l or -n "
+      input = gets.chomp
+    end
+
+    if input == "-n"
+      return Board.new
+    else
+      saved_game = File.read("saved_game.yml")
+      return YAML::load(saved_game)
+    end
+
+  end
+
+
   def initialize
     make_grid(9)
   end
@@ -106,6 +125,11 @@ class Board
     num.times { self[[rand(8), rand(8)]].bombed = true }
   end
 
+  def save
+    saved_game = self.to_yaml
+    File.open("saved_game.yml", "w") { |file| file.write(saved_game)}
+  end
+
 
   def play
 
@@ -113,6 +137,11 @@ class Board
 
       display_board
       action = get_input
+      if action.include?("-s")
+        save
+        break
+      end
+
       coordinates = [action[0].to_i, action[1].to_i]
 
       if action.include?("-f")
@@ -130,7 +159,7 @@ class Board
   end
 
   def get_input
-    print "Enter coordinates (add -f to flag): " #"1 2 -f"
+    print "Enter coordinates (-f to flag) or enter -s to save the game: " #"1 2 -f"
     gets.chomp.split(" ")
   end
 
@@ -156,7 +185,7 @@ end
 
 
 
-b = Board.new
+b = Board.load
 b.play
 #b.display_board
 #b[[3,4]] = Tile.new([3,4], :none, b)
